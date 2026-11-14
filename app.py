@@ -1,38 +1,135 @@
 import os
+import sqlite3
 from datetime import date
 from urllib.parse import urlparse
-
-from flask import Flask, abort, flash, jsonify, redirect, render_template, request, url_for
-
-import db
+from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get(
-    "SECRET_KEY", "dataset-catalog-insecure-secret-key-change-in-production"
-)
+app.config["SECRET_KEY"] = "secret-key-for-student-project"
 
-# Initialize database schema and default dataset records
-with app.app_context():
-    db.init_db()
+DATA_DIR = os.environ.get("DATA_DIR", ".")
+DB_PATH = os.path.join(DATA_DIR, "catalog.db")
+
+SAMPLE_DATASETS = [
+    {
+        "name": "Global Climate Indicators",
+        "description": "A curated collection of climate observations and indicators for long-term environmental research.",
+        "category": "Climate Science",
+        "format": "CSV",
+        "source": "https://example.com/climate-indicators",
+        "size": "2.4 GB",
+        "license": "CC BY 4.0",
+        "date_added": "2026-10-28",
+    },
+    {
+        "name": "Urban Mobility Survey",
+        "description": "Anonymized travel patterns and transport preferences from a multi-city survey.",
+        "category": "Social Science",
+        "format": "XLSX",
+        "source": "https://example.com/urban-mobility",
+        "size": "860 MB",
+        "license": "CC BY-NC 4.0",
+        "date_added": "2026-10-21",
+    },
+    {
+        "name": "Biodiversity Field Observations",
+        "description": "Species observations recorded across protected habitats during field studies.",
+        "category": "Biology",
+        "format": "JSON",
+        "source": "https://example.com/biodiversity",
+        "size": "1.1 GB",
+        "license": "Public Domain",
+        "date_added": "2026-10-12",
+    },
+    {
+        "name": "Open Materials Measurements",
+        "description": "Laboratory measurements of material properties from reproducible experiments.",
+        "category": "Materials Science",
+        "format": "Parquet",
+        "source": "https://example.com/materials",
+        "size": "540 MB",
+        "license": "CC BY 4.0",
+        "date_added": "2026-09-30",
+    },
+]
+
+
+def get_db():
+    """Connect to SQLite database."""
+    os.makedirs(os.path.dirname(os.path.abspath(DB_PATH)), exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    """Create table and insert initial sample data if empty."""
+    conn = get_db()
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS datasets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL,
+            category TEXT NOT NULL,
+            format TEXT NOT NULL,
+            source TEXT,
+            size TEXT NOT NULL,
+            license TEXT NOT NULL,
+            date_added TEXT NOT NULL
+        )
+        """
+    )
+    count = conn.execute("SELECT COUNT(*) FROM datasets").fetchone()[0]
+    if count == 0:
+        for ds in SAMPLE_DATASETS:
+            conn.execute(
+                """
+                INSERT INTO datasets (name, description, category, format, source, size, license, date_added)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    ds["name"],
+                    ds["description"],
+                    ds["category"],
+                    ds["format"],
+                    ds["source"],
+                    ds["size"],
+                    ds["license"],
+                    ds["date_added"],
+                ),
+            )
+        conn.commit()
+    conn.close()
+
+
+# Initialize database
+init_db()
 
 
 def get_dataset(dataset_id):
-    """Return one dataset by ID, or raise a 404 for an unknown ID."""
-    dataset = db.get_dataset(dataset_id)
-    if dataset is None:
+    """Fetch one dataset by ID or return 404."""
+    conn = get_db()
+    row = conn.execute("SELECT * FROM datasets WHERE id = ?", (dataset_id,)).fetchone()
+    conn.close()
+    if row is None:
         abort(404)
-    return dataset
+    data = dict(row)
+    data["source_url"] = data.get("source", "")
+    return data
 
 
 def form_choices():
-    """Build form choices from the current catalog records."""
-    categories = db.get_categories()
-    formats = db.get_formats()
+    """Get category and format choices for dropdowns."""
+    conn = get_db()
+    categories = [r[0] for r in conn.execute("SELECT DISTINCT category FROM datasets ORDER BY category")]
+    formats = [r[0] for r in conn.execute("SELECT DISTINCT format FROM datasets ORDER BY format")]
+    conn.close()
     return categories, formats
 
 
 def validate_dataset_form():
-    """Validate submitted fields and return normalized data plus errors."""
+    """Validate submitted fields."""
     source = request.form.get("source", request.form.get("source_url", "")).strip()
     fields = {
         "name": request.form.get("name", "").strip(),
@@ -46,17 +143,10 @@ def validate_dataset_form():
     }
     errors = []
 
-    required_fields = {
-        "name": "Dataset name",
-        "description": "Description",
-        "category": "Category",
-        "format": "Format",
-        "size": "Dataset size",
-        "license": "License information",
-    }
-    for field, label in required_fields.items():
-        if not fields[field]:
-            errors.append(f"{label} is required.")
+    required = ["name", "description", "category", "format", "size", "license"]
+    for req in required:
+        if not fields[req]:
+            errors.append(f"{req.capitalize()} is required.")
 
     if fields["name"] and len(fields["name"]) < 3:
         errors.append("Dataset name must be at least 3 characters.")
@@ -64,60 +154,85 @@ def validate_dataset_form():
         errors.append("Description must be at least 10 characters.")
 
     if source:
-        parsed_url = urlparse(source)
-        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
-            errors.append("Enter a valid source URL beginning with http:// or https://.")
+        parsed = urlparse(source)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            errors.append("Source URL must begin with http:// or https://")
 
     return fields, errors
 
 
 @app.route("/healthz")
-@app.route("/health")
-def health_check():
-    """Kubernetes / OpenShift readiness and liveness probe endpoint."""
-    try:
-        # Verify database accessibility
-        db.get_stats()
-        return jsonify({"status": "healthy", "database": "connected"}), 200
-    except Exception as e:
-        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+def healthz():
+    """Health check for Podman/OpenShift."""
+    return "OK", 200
 
 
 @app.route("/")
 def dashboard():
-    stats = db.get_stats()
-    recent_datasets = db.get_recent_datasets(5)
+    conn = get_db()
+    total_datasets = conn.execute("SELECT COUNT(*) FROM datasets").fetchone()[0]
+    total_categories = conn.execute("SELECT COUNT(DISTINCT category) FROM datasets").fetchone()[0]
+    total_formats = conn.execute("SELECT COUNT(DISTINCT format) FROM datasets").fetchone()[0]
+    recent_rows = conn.execute("SELECT * FROM datasets ORDER BY id DESC LIMIT 5").fetchall()
+    conn.close()
+
+    recent_datasets = [dict(r) for r in recent_rows]
+    for d in recent_datasets:
+        d["source_url"] = d.get("source", "")
+
     return render_template(
         "dashboard.html",
-        total_datasets=stats["total_datasets"],
-        total_categories=stats["total_categories"],
-        total_formats=stats["total_formats"],
+        total_datasets=total_datasets,
+        total_categories=total_categories,
+        total_formats=total_formats,
         recent_datasets=recent_datasets,
     )
 
 
 @app.route("/datasets")
 def datasets_catalog():
-    search_term = request.args.get("search", request.args.get("q", "")).strip()
+    search = request.args.get("search", request.args.get("q", "")).strip()
     selected_category = request.args.get("category", "").strip()
     selected_format = request.args.get("format", "").strip()
     selected_license = request.args.get("license", "").strip()
 
-    filtered_datasets = db.get_all_datasets(
-        search=search_term,
-        category=selected_category,
-        format=selected_format,
-        license=selected_license,
-    )
+    query = "SELECT * FROM datasets WHERE 1=1"
+    params = []
+
+    if search:
+        query += " AND (name LIKE ? OR description LIKE ?)"
+        params.extend([f"%{search}%", f"%{search}%"])
+    if selected_category:
+        query += " AND category = ?"
+        params.append(selected_category)
+    if selected_format:
+        query += " AND format = ?"
+        params.append(selected_format)
+    if selected_license:
+        query += " AND license = ?"
+        params.append(selected_license)
+
+    query += " ORDER BY id DESC"
+
+    conn = get_db()
+    rows = conn.execute(query, params).fetchall()
+    categories = [r[0] for r in conn.execute("SELECT DISTINCT category FROM datasets ORDER BY category")]
+    formats = [r[0] for r in conn.execute("SELECT DISTINCT format FROM datasets ORDER BY format")]
+    licenses = [r[0] for r in conn.execute("SELECT DISTINCT license FROM datasets ORDER BY license")]
+    conn.close()
+
+    filtered_datasets = [dict(r) for r in rows]
+    for d in filtered_datasets:
+        d["source_url"] = d.get("source", "")
 
     return render_template(
         "datasets.html",
         datasets=filtered_datasets,
-        categories=db.get_categories(),
-        formats=db.get_formats(),
-        licenses=db.get_licenses(),
-        search_term=search_term,
-        search=search_term,
+        categories=categories,
+        formats=formats,
+        licenses=licenses,
+        search_term=search,
+        search=search,
         selected_category=selected_category,
         selected_format=selected_format,
         selected_license=selected_license,
@@ -144,10 +259,29 @@ def add_dataset():
                 400,
             )
 
-        fields["date_added"] = date.today().isoformat()
-        dataset_id = db.add_dataset(fields)
+        conn = get_db()
+        cursor = conn.execute(
+            """
+            INSERT INTO datasets (name, description, category, format, source, size, license, date_added)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                fields["name"],
+                fields["description"],
+                fields["category"],
+                fields["format"],
+                fields["source"],
+                fields["size"],
+                fields["license"],
+                date.today().isoformat(),
+            ),
+        )
+        conn.commit()
+        new_id = cursor.lastrowid
+        conn.close()
+
         flash("Dataset added successfully.", "success")
-        return redirect(url_for("dataset_details", dataset_id=dataset_id))
+        return redirect(url_for("dataset_details", dataset_id=new_id))
 
     return render_template(
         "dataset_form.html",
@@ -186,8 +320,28 @@ def edit_dataset(dataset_id):
                 400,
             )
 
-        db.update_dataset(dataset_id, fields)
-        flash("Dataset changes saved successfully.", "success")
+        conn = get_db()
+        conn.execute(
+            """
+            UPDATE datasets
+            SET name = ?, description = ?, category = ?, format = ?, source = ?, size = ?, license = ?
+            WHERE id = ?
+            """,
+            (
+                fields["name"],
+                fields["description"],
+                fields["category"],
+                fields["format"],
+                fields["source"],
+                fields["size"],
+                fields["license"],
+                dataset_id,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        flash("Dataset updated successfully.", "success")
         return redirect(url_for("dataset_details", dataset_id=dataset_id))
 
     return render_template(
@@ -204,13 +358,14 @@ def edit_dataset(dataset_id):
 def delete_dataset(dataset_id):
     dataset = get_dataset(dataset_id)
     if request.method == "POST":
-        db.delete_dataset(dataset_id)
+        conn = get_db()
+        conn.execute("DELETE FROM datasets WHERE id = ?", (dataset_id,))
+        conn.commit()
+        conn.close()
         flash("Dataset deleted successfully.", "success")
         return redirect(url_for("datasets_catalog"))
     return render_template("delete_dataset.html", dataset=dataset)
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    debug_mode = os.environ.get("FLASK_DEBUG", "0") == "1"
-    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+    app.run(host="0.0.0.0", port=5000)
