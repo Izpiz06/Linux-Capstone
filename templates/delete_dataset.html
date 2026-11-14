@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Dataset{% endblock %}
+
+{% block content %}
+<section class="delete-wrap">
+    <div class="content-card delete-card animate-delete-in">
+        <span class="delete-icon delete-icon-large"><i class="bi bi-trash3-fill" aria-hidden="true"></i></span>
+        <p class="eyebrow">CONFIRM PERMANENT ACTION</p>
+        <h1>Delete Dataset?</h1>
+        <p class="delete-copy">You are about to permanently delete:</p>
+        <p class="delete-dataset-name">{{ dataset.name }}</p>
+        <div class="delete-warning"><i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>This action cannot be undone.</div>
+        <form method="post" action="{{ url_for('delete_dataset', dataset_id=dataset.id) }}" class="delete-actions" data-submit-loading>
+            <a class="btn btn-light-custom" href="{{ url_for('dataset_details', dataset_id=dataset.id) }}">Cancel</a>
+            <button class="btn btn-danger-custom" type="submit" data-loading-label="Deleting…">
+                <span class="button-label"><i class="bi bi-trash3 me-2" aria-hidden="true"></i>Confirm Delete</span>
+                <span class="button-loading d-none"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Deleting…</span>
+            </button>
+        </form>
+    </div>
+</section>
+{% endblock %}

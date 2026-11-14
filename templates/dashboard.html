@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<section class="page-heading dashboard-heading animate-fade-up">
+    <div>
+        <p class="eyebrow"><span class="eyebrow-dot"></span>RESEARCH WORKSPACE</p>
+        <h1>Dataset Dashboard</h1>
+        <p class="heading-copy">An overview of the research resources in your catalog.</p>
+    </div>
+    <a class="btn btn-primary-custom" href="{{ url_for('add_dataset') }}"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Add Dataset</a>
+</section>
+
+<section class="row g-3 g-lg-4 summary-row" aria-label="Catalog summary">
+    <div class="col-12 col-md-4">
+        <article class="summary-card hover-lift animate-fade-up" style="--animation-delay: 50ms">
+            <div class="summary-icon icon-blue"><i class="bi bi-collection" aria-hidden="true"></i></div>
+            <div>
+                <p class="summary-label">Total Datasets</p>
+                <p class="summary-value">{{ total_datasets }}</p>
+            </div>
+            <span class="summary-caption">Research resources in the catalog</span>
+        </article>
+    </div>
+    <div class="col-12 col-md-4">
+        <article class="summary-card hover-lift animate-fade-up" style="--animation-delay: 110ms">
+            <div class="summary-icon icon-teal"><i class="bi bi-tags" aria-hidden="true"></i></div>
+            <div>
+                <p class="summary-label">Total Categories</p>
+                <p class="summary-value">{{ total_categories }}</p>
+            </div>
+            <span class="summary-caption">Distinct research areas</span>
+        </article>
+    </div>
+    <div class="col-12 col-md-4">
+        <article class="summary-card hover-lift animate-fade-up" style="--animation-delay: 170ms">
+            <div class="summary-icon icon-violet"><i class="bi bi-file-earmark-code" aria-hidden="true"></i></div>
+            <div>
+                <p class="summary-label">Total Supported Formats</p>
+                <p class="summary-value">{{ total_formats }}</p>
+            </div>
+            <span class="summary-caption">Available file types</span>
+        </article>
+    </div>
+</section>
+
+<section class="content-card recent-card animate-fade-up" style="--animation-delay: 220ms">
+    <div class="section-header">
+        <div>
+            <p class="eyebrow">LATEST ADDITIONS</p>
+            <h2>Recently Added Datasets</h2>
+        </div>
+        <a class="btn btn-outline-custom" href="{{ url_for('datasets_catalog') }}">View Catalog <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i></a>
+    </div>
+    {% if recent_datasets %}
+        <div class="table-responsive">
+            <table class="table catalog-table dashboard-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Dataset Name</th>
+                        <th>Category</th>
+                        <th>Format</th>
+                        <th>License</th>
+                        <th>Date Added</th>
+                        <th class="text-end">View</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dataset in recent_datasets %}
+                        <tr>
+                            <td>
+                                <a class="dataset-link" href="{{ url_for('dataset_details', dataset_id=dataset.id) }}">{{ dataset.name }}</a>
+                                <span class="table-subtitle">{{ dataset.description|truncate(90) }}</span>
+                            </td>
+                            <td><span class="category-badge">{{ dataset.category }}</span></td>
+                            <td><span class="format-badge">{{ dataset.format }}</span></td>
+                            <td class="text-muted">{{ dataset.license }}</td>
+                            <td class="text-muted text-nowrap">{{ dataset.get('created_at') or dataset.get('date_added', 'Not recorded') }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-custom view-button" href="{{ url_for('dataset_details', dataset_id=dataset.id) }}" title="View Dataset" data-bs-toggle="tooltip" aria-label="View {{ dataset.name }}"><i class="bi bi-eye me-sm-1" aria-hidden="true"></i><span>View</span></a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state compact-empty">
+            <span class="empty-icon"><i class="bi bi-database" aria-hidden="true"></i></span>
+            <h3>No datasets yet</h3>
+            <p>Add your first research dataset to get started.</p>
+            <a class="btn btn-primary-custom" href="{{ url_for('add_dataset') }}"><i class="bi bi-plus-lg me-2" aria-hidden="true"></i>Add Dataset</a>
+        </div>
+    {% endif %}
+</section>
+{% endblock %}

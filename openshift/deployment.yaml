@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: research-dataset-catalog
+  labels:
+    app: research-dataset-catalog
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: research-dataset-catalog
+  template:
+    metadata:
+      labels:
+        app: research-dataset-catalog
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: catalog-app
+          image: image-registry.openshift-image-registry.svc:5000/research-dataset-catalog:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: DATA_DIR
+              value: "/data"
+            - name: SECRET_KEY
+              value: "change-this-in-production-openshift-secret"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: catalog-storage
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: catalog-storage
+          persistentVolumeClaim:
+            claimName: dataset-catalog-data

@@ -1,0 +1,16 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: research-dataset-catalog
+  labels:
+    app: research-dataset-catalog
+spec:
+  to:
+    kind: Service
+    name: research-dataset-catalog
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect

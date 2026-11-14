@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<section class="page-heading animate-fade-up">
+    <div>
+        <p class="eyebrow"><span class="eyebrow-dot"></span>{{ 'UPDATE CATALOG ENTRY' if is_edit else 'GROW YOUR COLLECTION' }}</p>
+        <h1>{{ page_title }}</h1>
+        <p class="heading-copy">{{ 'Update the metadata associated with this dataset.' if is_edit else 'Register a new research dataset in the catalog.' }}</p>
+    </div>
+</section>
+
+<section class="content-card form-card animate-fade-up" style="--animation-delay: 70ms">
+    <form method="post" action="{{ url_for('edit_dataset', dataset_id=dataset.id) if is_edit else url_for('add_dataset') }}" data-submit-loading>
+        <div class="form-section">
+            <div class="form-section-heading">
+                <span class="form-section-icon"><i class="bi bi-card-text" aria-hidden="true"></i></span>
+                <div><h2>Basic Information</h2><p>Give this dataset a clear name and useful summary.</p></div>
+            </div>
+            <div class="row g-4">
+                <div class="col-12">
+                    <label class="form-label" for="name">Dataset Name <span class="required-mark" aria-label="required">*</span></label>
+                    <input class="form-control" id="name" name="name" type="text" minlength="3" maxlength="160" value="{{ dataset.get('name', '') }}" placeholder="e.g. Global Climate Indicators" autocomplete="off" required>
+                    <div class="invalid-feedback">Enter a dataset name with at least 3 characters.</div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="description">Description <span class="required-mark" aria-label="required">*</span></label>
+                    <textarea class="form-control" id="description" name="description" rows="4" minlength="10" maxlength="2000" placeholder="Describe the dataset, its contents, and potential research uses." required>{{ dataset.get('description', '') }}</textarea>
+                    <div class="invalid-feedback">Enter a description with at least 10 characters.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-heading">
+                <span class="form-section-icon icon-teal"><i class="bi bi-diagram-3" aria-hidden="true"></i></span>
+                <div><h2>Dataset Classification</h2><p>Help researchers discover this resource by subject and format.</p></div>
+            </div>
+            <div class="row g-4">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="category">Category <span class="required-mark" aria-label="required">*</span></label>
+                    <input class="form-control" id="category" name="category" type="text" maxlength="100" list="category-options" value="{{ dataset.get('category', '') }}" placeholder="e.g. Climate Science" required>
+                    <datalist id="category-options">{% for category in categories %}<option value="{{ category }}">{% endfor %}</datalist>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="format">Format <span class="required-mark" aria-label="required">*</span></label>
+                    <select class="form-select" id="format" name="format" required>
+                        <option value="" disabled {% if not dataset.get('format') %}selected{% endif %}>Select a file format</option>
+                        {% set supported_formats = ['CSV', 'JSON', 'XLSX', 'XML', 'TXT', 'SQL', 'ZIP'] %}
+                        {% if dataset.get('format') and dataset.get('format') not in supported_formats %}
+                            <option value="{{ dataset.get('format') }}" selected>{{ dataset.get('format') }}</option>
+                        {% endif %}
+                        {% for format_option in supported_formats %}
+                            <option value="{{ format_option }}" {% if dataset.get('format') == format_option %}selected{% endif %}>{{ format_option }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section form-section-last">
+            <div class="form-section-heading">
+                <span class="form-section-icon icon-violet"><i class="bi bi-link-45deg" aria-hidden="true"></i></span>
+                <div><h2>Source &amp; Access</h2><p>Share where the data comes from and how it can be used.</p></div>
+            </div>
+            <div class="row g-4">
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="source">Source URL</label>
+                    <div class="input-with-icon">
+                        <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                        <input class="form-control" id="source" name="source" type="url" maxlength="500" value="{{ dataset.get('source', dataset.get('source_url', '')) }}" placeholder="https://example.org/dataset">
+                    </div>
+                    <div class="form-hint">Use a complete http:// or https:// address.</div>
+                    <div class="invalid-feedback">Enter a valid source URL.</div>
+                </div>
+                <div class="col-12 col-md-6">
+                    <label class="form-label" for="size">Dataset Size <span class="required-mark" aria-label="required">*</span></label>
+                    <input class="form-control" id="size" name="size" type="text" maxlength="60" value="{{ dataset.get('size', '') }}" placeholder="25 MB" required>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="license">License Information <span class="required-mark" aria-label="required">*</span></label>
+                    <input class="form-control" id="license" name="license" type="text" maxlength="120" value="{{ dataset.get('license', '') }}" placeholder="CC BY 4.0" required>
+                    <div class="form-hint">Specify the reuse terms associated with this dataset.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <a class="btn btn-light-custom" href="{{ url_for('datasets_catalog') }}">Cancel</a>
+            <button class="btn btn-primary-custom" type="submit" data-loading-label="{{ 'Saving…' if is_edit else 'Adding…' }}">
+                <span class="button-label"><i class="bi bi-check2 me-2" aria-hidden="true"></i>{{ 'Save Changes' if is_edit else 'Add Dataset' }}</span>
+                <span class="button-loading d-none"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>{{ 'Saving…' if is_edit else 'Adding…' }}</span>
+            </button>
+        </div>
+    </form>
+</section>
+{% endblock %}

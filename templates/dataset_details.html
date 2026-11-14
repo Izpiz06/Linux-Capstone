@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dataset.name }}{% endblock %}
+
+{% block content %}
+<div class="detail-back animate-fade-up">
+    <a class="back-link" href="{{ url_for('datasets_catalog') }}"><i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to Catalog</a>
+</div>
+<section class="detail-hero content-card animate-fade-up" style="--animation-delay: 50ms">
+    <div class="detail-title-row">
+        <div class="detail-intro">
+            <p class="eyebrow"><span class="eyebrow-dot"></span>DATASET DETAILS</p>
+            <span class="category-badge detail-category"><i class="bi bi-tag me-1" aria-hidden="true"></i>{{ dataset.category }}</span>
+            <h1>{{ dataset.name }}</h1>
+            <p class="detail-description">{{ dataset.description }}</p>
+        </div>
+        <a class="btn btn-primary-custom detail-edit-cta" href="{{ url_for('edit_dataset', dataset_id=dataset.id) }}"><i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit Dataset</a>
+    </div>
+</section>
+
+<section class="metadata-grid" aria-label="Dataset metadata">
+    <article class="metadata-card hover-lift animate-fade-up" style="--animation-delay: 100ms">
+        <span class="metadata-icon icon-blue"><i class="bi bi-file-earmark-code" aria-hidden="true"></i></span>
+        <span class="metadata-label">Format</span><strong class="metadata-value">{{ dataset.format }}</strong>
+    </article>
+    <article class="metadata-card hover-lift animate-fade-up" style="--animation-delay: 140ms">
+        <span class="metadata-icon icon-teal"><i class="bi bi-hdd" aria-hidden="true"></i></span>
+        <span class="metadata-label">Dataset Size</span><strong class="metadata-value">{{ dataset.size }}</strong>
+    </article>
+    <article class="metadata-card hover-lift animate-fade-up" style="--animation-delay: 180ms">
+        <span class="metadata-icon icon-violet"><i class="bi bi-shield-check" aria-hidden="true"></i></span>
+        <span class="metadata-label">License</span><strong class="metadata-value">{{ dataset.license }}</strong>
+    </article>
+    <article class="metadata-card hover-lift animate-fade-up" style="--animation-delay: 220ms">
+        <span class="metadata-icon icon-amber"><i class="bi bi-calendar3" aria-hidden="true"></i></span>
+        <span class="metadata-label">Date Added</span><strong class="metadata-value">{{ dataset.get('created_at') or dataset.get('date_added', 'Not recorded') }}</strong>
+    </article>
+</section>
+
+<div class="row g-4 detail-lower">
+    <div class="col-12 col-lg-7">
+        <section class="content-card source-card animate-fade-up" style="--animation-delay: 250ms">
+            <div class="card-section-heading">
+                <span class="section-icon"><i class="bi bi-link-45deg" aria-hidden="true"></i></span>
+                <div><h2>Source &amp; Access</h2><p>Original location and access information for this resource.</p></div>
+            </div>
+            {% set source_url = dataset.get('source') or dataset.get('source_url') %}
+            {% if source_url %}
+                <div class="source-url"><i class="bi bi-globe2 me-2" aria-hidden="true"></i><span>{{ source_url }}</span></div>
+                <a class="btn btn-primary-custom source-button" href="{{ source_url }}" target="_blank" rel="noopener noreferrer"><i class="bi bi-box-arrow-up-right me-2" aria-hidden="true"></i>Open Dataset Source</a>
+            {% else %}
+                <div class="source-empty"><i class="bi bi-info-circle me-2" aria-hidden="true"></i>No source URL has been provided for this dataset.</div>
+            {% endif %}
+        </section>
+    </div>
+    <div class="col-12 col-lg-5">
+        <section class="content-card detail-actions-card animate-fade-up" style="--animation-delay: 290ms">
+            <div class="card-section-heading">
+                <span class="section-icon icon-teal"><i class="bi bi-lightning-charge" aria-hidden="true"></i></span>
+                <div><h2>Actions</h2><p>Manage this catalog entry.</p></div>
+            </div>
+            <div class="detail-action-list">
+                <a class="btn btn-outline-custom" href="{{ url_for('edit_dataset', dataset_id=dataset.id) }}"><i class="bi bi-pencil me-2" aria-hidden="true"></i>Edit Dataset<i class="bi bi-arrow-right ms-auto" aria-hidden="true"></i></a>
+                <a class="btn btn-danger-soft" href="{{ url_for('delete_dataset', dataset_id=dataset.id) }}"><i class="bi bi-trash3 me-2" aria-hidden="true"></i>Delete Dataset<i class="bi bi-arrow-right ms-auto" aria-hidden="true"></i></a>
+                <a class="text-link back-catalog-link" href="{{ url_for('datasets_catalog') }}"><i class="bi bi-arrow-left me-2" aria-hidden="true"></i>Back to Catalog</a>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: research-dataset-catalog
+  labels:
+    app: research-dataset-catalog
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+      protocol: TCP
+  selector:
+    app: research-dataset-catalog
+  type: ClusterIP

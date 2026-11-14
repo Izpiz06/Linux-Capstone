@@ -1,0 +1,115 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dataset-catalog-data
+  labels:
+    app: research-dataset-catalog
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: research-dataset-catalog
+  labels:
+    app: research-dataset-catalog
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: research-dataset-catalog
+  template:
+    metadata:
+      labels:
+        app: research-dataset-catalog
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: catalog-app
+          image: research-dataset-catalog:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+              name: http
+          env:
+            - name: DATA_DIR
+              value: "/data"
+            - name: SECRET_KEY
+              value: "research-dataset-catalog-openshift-secret-key"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: catalog-storage
+              mountPath: /data
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: catalog-storage
+          persistentVolumeClaim:
+            claimName: dataset-catalog-data
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: research-dataset-catalog
+  labels:
+    app: research-dataset-catalog
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+      protocol: TCP
+  selector:
+    app: research-dataset-catalog
+  type: ClusterIP
+
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: research-dataset-catalog
+  labels:
+    app: research-dataset-catalog
+spec:
+  to:
+    kind: Service
+    name: research-dataset-catalog
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
