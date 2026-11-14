@@ -1,55 +1,50 @@
 # Research Dataset Catalog
 
-A simple Flask web application to manage research dataset metadata, built for Podman and OpenShift.
+A simple Flask web application to manage research dataset metadata, containerized with **Podman**.
 
-## Requirements Covered
+## Features & Requirements
 - **Add / Edit / Remove** datasets (name, description, category, format, source URL, size, license).
 - **List & Search** datasets.
 - **Filter** by Format, Category, or License.
-- **Persistence**: Metadata is stored in a SQLite database inside `/data`. Large datasets are kept external (referenced via URL), keeping the container lightweight.
+- **Persistence**: Metadata is stored in a SQLite database inside a mounted volume (`/data`). Datasets are referenced via URL so the container image remains lightweight.
 
 ---
 
-## 1. Run with Podman
+## Running with Podman
 
-### Build Image
+### 1. Build the Image
 ```bash
 podman build -t dataset-catalog .
 ```
 
-### Run with Persistent Volume
+### 2. Create a Persistent Volume
 ```bash
-# Create volume for database persistence
 podman volume create catalog-data
+```
 
-# Run container
+### 3. Run the Container
+```bash
 podman run -d --name catalog -p 5000:5000 -v catalog-data:/data:Z dataset-catalog
 ```
+
 Open **http://127.0.0.1:5000/** in your browser.
 
----
-
-## 2. Deploy to OpenShift
-
-All OpenShift resources (PVC, Deployment, Service, Route) are in `openshift.yaml`.
-
+### 4. Stop and Remove Container
 ```bash
-oc apply -f openshift.yaml
+podman stop catalog
+podman rm catalog
 ```
 
-Get your public URL:
-```bash
-oc get route dataset-catalog
-```
+*(Your data remains safely stored in `catalog-data` and will reappear whenever you start a new container with the same volume).*
 
 ---
 
 ## Project Structure
 ```text
-├── app.py             # Entire Flask app + SQLite logic in one file
-├── requirements.txt   # Just Flask
-├── Containerfile      # Simple container build file
-├── openshift.yaml     # OpenShift PVC, Deployment, Service & Route
+├── app.py             # Entire Flask app and SQLite persistence logic
+├── requirements.txt   # Dependencies (Flask)
+├── Containerfile      # Podman build definition
+├── .containerignore   # Ignore files for Podman build
 ├── templates/         # HTML pages
-└── static/            # CSS & JS
+└── static/            # CSS & JS styling
 ```

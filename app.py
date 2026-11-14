@@ -163,7 +163,7 @@ def validate_dataset_form():
 
 @app.route("/healthz")
 def healthz():
-    """Health check for Podman/OpenShift."""
+    """Health check endpoint."""
     return "OK", 200
 
 

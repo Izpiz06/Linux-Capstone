@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Directory for persistent database (writable by OpenShift)
+# Directory for persistent database
 RUN mkdir -p /data && chmod 777 /data
 
 ENV DATA_DIR=/data
