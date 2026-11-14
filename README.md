@@ -25,7 +25,7 @@ podman volume create catalog-data
 # Run container
 podman run -d --name catalog -p 5000:5000 -v catalog-data:/data:Z dataset-catalog
 ```
-Open **http://localhost:5000** in your browser.
+Open **http://127.0.0.1:5000/** in your browser.
 
 ---
 
